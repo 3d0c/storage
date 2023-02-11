@@ -22,6 +22,13 @@ func SetupRouter() *chi.Mux {
 		),
 	)
 
+	r.Get(
+		"/file/{ID}",
+		middlewares.Chain(
+			handlers.FileHandler().Get,
+		),
+	)
+
 	walkFunc := func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 		log.TheLogger().Debug("registered", zap.String("method", method), zap.String("route", route))
 		return nil

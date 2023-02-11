@@ -40,6 +40,8 @@ func (s *HTTPSaver) Save(r io.Reader) error {
 		return fmt.Errorf("error initializing Parts model - %s", err)
 	}
 
+	fmt.Printf("=== chunk: %v\n", s.chunk)
+
 	for i := 0; i < ChunkCount(); i++ {
 		chunkSize := s.chunk.Size
 		// First chunk will always be larger
@@ -48,16 +50,13 @@ func (s *HTTPSaver) Save(r io.Reader) error {
 			chunkSize += s.chunk.Modulo
 		}
 
-		// TODO Method of random node picking doesn't provide a good
-		// distribution on small sets.
-		// Circular buffer might be an option
+		// TODO Circular buffer might be an option for better distribution
 
-		// node, nodeID := s.nodes.Pick()
-		node, nodeID := "http://localhost:9000/file", 0
+		node, nodeID := s.nodes.Pick()
 		node = fmt.Sprintf("%s/%s", node, s.objectID)
 
 		// DEBUG
-		// fmt.Printf("=== Saving part #%d of length %d to node %s\n", i, chunkSize, node)
+		fmt.Printf("=== Saving part #%d of length %d to node %s\n", i, chunkSize, node)
 
 		pr, pw := io.Pipe()
 
@@ -97,7 +96,6 @@ func (s *HTTPSaver) save(url string, payload io.Reader) error {
 	if req, err = http.NewRequestWithContext(ctx, "PUT", url, payload); err != nil {
 		return fmt.Errorf("error creating http request - %s", err)
 	}
-	defer cancel()
 
 	if resp, err = client.Do(req); err != nil {
 		return fmt.Errorf("error doing request %v - %s", req, err)

@@ -39,3 +39,11 @@ func (n Nodes) Pick() (string, int) {
 	id := utils.RandomSeed(0, len(n)-1)
 	return n[id], id
 }
+
+// Get node by id
+func (n Nodes) Get(id int) string {
+	if id > len(n)-1 {
+		return ""
+	}
+	return n[id]
+}
