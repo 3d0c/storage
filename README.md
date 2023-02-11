@@ -18,13 +18,14 @@ Both parts support the same requests PUT/{ID} and GET/{ID} the only difference i
 go get github.com/3d0c/storage
 
 # build proxy and node
-make build
+make build/proxy && make build/node
 ```
 
 ## Running and testing
 
 Please take a look at `configs/dev` to be aware of pathes these programs use. If it's not suitted for you, change them. 
-By default configuration there should be a 10 nodes, which proxy are expected to be.
+By default configuration there should be a 10 nodes, which proxy are expected to be. The following commanf will run 10 node instances with ports range 9000-9009 and storage directories /tmp/node-sorage-[0-9]  
+Don't forget to kill'em all after testing.
 
 ```sh
 # start nodes. (better to run it in separated terminal)
@@ -34,7 +35,7 @@ By default configuration there should be a 10 nodes, which proxy are expected to
 Now let's start the proxy
 
 ```sh
-./proxy_main run --config=configs/dev/proxy.yaml
+build/proxy run --config=configs/dev/proxy.yaml
 ```
 
 It should be up and running. All logs will be writtin to the STDOUT.
