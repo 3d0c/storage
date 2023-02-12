@@ -28,17 +28,16 @@ func (*File) Put(_ http.ResponseWriter, r *http.Request) (interface{}, int, erro
 		nodes    = config.Proxy().Nodes
 		sv       saver.Saver
 		om       *models.Object
-		pm       *models.Parts
 		size     int
 		err      error
 	)
 
-	if pm, err = models.NewPartsModel(); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error initializing Parts model - %s", err)
+	if om, err = models.NewObjectModel(); err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("error initializing Object model - %s", err)
 	}
 
-	if _, err = pm.FindNodes(objectID); err != nil {
-		return nil, http.StatusForbidden, fmt.Errorf("object '%s' already exist", objectID)
+	if _, err = om.Find(objectID); err == nil {
+		return nil, http.StatusForbidden, fmt.Errorf("object %s already exist", objectID)
 	}
 
 	if size, err = strconv.Atoi(r.Header.Get("Content-Length")); err != nil {
@@ -53,10 +52,6 @@ func (*File) Put(_ http.ResponseWriter, r *http.Request) (interface{}, int, erro
 
 	if err = sv.Save(r.Body); err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("error saving data - %s", err)
-	}
-
-	if om, err = models.NewObjectModel(); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error initializing Object model - %s", err)
 	}
 
 	if err = om.Add(objectID, size); err != nil {

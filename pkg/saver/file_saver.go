@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/3d0c/storage/pkg/utils"
 )
 
 // FileSaver struct
@@ -14,18 +16,19 @@ type FileSaver struct {
 }
 
 // NewFileSaver constructor
-func NewFileSaver(objectID, dir string) (*FileSaver, error) {
+func NewFileSaver(objectID, root string) (*FileSaver, error) {
 	var (
 		fs = &FileSaver{
 			objectID: objectID,
-			dir:      dir,
 		}
 		err error
 	)
 
-	if _, err = os.Stat(dir); os.IsNotExist(err) {
-		if err = os.MkdirAll(dir, 0755); err != nil {
-			return nil, fmt.Errorf("error creating storage directory '%s' - %s", dir, err)
+	fs.dir = filepath.Dir(utils.BuildFilePath(root, objectID))
+
+	if _, err = os.Stat(fs.dir); os.IsNotExist(err) {
+		if err = os.MkdirAll(fs.dir, 0755); err != nil {
+			return nil, fmt.Errorf("error creating storage directory '%s' - %s", fs.dir, err)
 		}
 	}
 

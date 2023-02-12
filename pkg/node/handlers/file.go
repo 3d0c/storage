@@ -5,12 +5,12 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/go-chi/chi"
 
 	"github.com/3d0c/storage/pkg/config"
 	"github.com/3d0c/storage/pkg/saver"
+	"github.com/3d0c/storage/pkg/utils"
 )
 
 // File is a file "namespace"
@@ -22,7 +22,7 @@ func FileHandler() *File {
 }
 
 // Put handler implementation
-func (*File) Put(_ http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func (*File) Put(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	var (
 		objectID = chi.URLParam(r, "ID")
 		sv       saver.Saver
@@ -50,7 +50,7 @@ func (*File) Get(w http.ResponseWriter, r *http.Request) (interface{}, int, erro
 		err      error
 	)
 
-	filePath := filepath.Join(config.Node().StorageDir, objectID)
+	filePath := utils.BuildFilePath(config.Node().StorageDir, objectID)
 
 	if src, err = os.OpenFile(filePath, os.O_RDONLY, 0644); err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("error opening file '%s' - %s", filePath, err)
@@ -60,6 +60,9 @@ func (*File) Get(w http.ResponseWriter, r *http.Request) (interface{}, int, erro
 	if _, err = io.Copy(w, src); err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("error copying file '%s' - %s", filePath, err)
 	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
 
 	return nil, http.StatusOK, nil
 }
