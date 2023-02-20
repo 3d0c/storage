@@ -13,56 +13,74 @@ import (
 	"github.com/3d0c/storage/pkg/utils"
 )
 
-// File is a file "namespace"
-type File struct{}
+// File structure. Namespace and config storage
+type File struct {
+	cfg config.NodeConfig
+}
 
-// FileHandler "file namespace" constructor
-func FileHandler() *File {
-	return &File{}
+// FileHandler file struct constructor
+func FileHandler(c config.NodeConfig) *File {
+	return &File{
+		cfg: c,
+	}
 }
 
 // Put handler implementation
-func (*File) Put(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func (f *File) Put(w http.ResponseWriter, r *http.Request) (int, error) {
 	var (
 		objectID = chi.URLParam(r, "ID")
 		sv       saver.Saver
 		err      error
 	)
 
-	if sv, err = saver.NewFileSaver(objectID, config.Node().StorageDir); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error initializing FileSaver - %s", err)
+	if sv, err = saver.NewFileSaver(objectID, f.cfg.StorageDir); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("error initializing FileSaver - %s", err)
 	}
-
-	defer r.Body.Close()
 
 	if err = sv.Save(r.Body); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error saving data - %s", err)
+		return http.StatusInternalServerError, fmt.Errorf("error saving data - %s", err)
 	}
 
-	return nil, http.StatusOK, nil
+	return http.StatusOK, nil
 }
 
 // Get handler implementation
-func (*File) Get(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func (f *File) Get(w http.ResponseWriter, r *http.Request) (int, error) {
 	var (
 		objectID = chi.URLParam(r, "ID")
 		src      *os.File
 		err      error
 	)
 
-	filePath := utils.BuildFilePath(config.Node().StorageDir, objectID)
+	filePath := utils.BuildFilePath(f.cfg.StorageDir, objectID)
 
 	if src, err = os.OpenFile(filePath, os.O_RDONLY, 0644); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error opening file '%s' - %s", filePath, err)
+		return http.StatusInternalServerError, fmt.Errorf("error opening file '%s' - %s", filePath, err)
 	}
 	defer src.Close()
-
-	if _, err = io.Copy(w, src); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error copying file '%s' - %s", filePath, err)
-	}
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusOK)
 
-	return nil, http.StatusOK, nil
+	if _, err = io.Copy(w, src); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("error copying file '%s' - %s", filePath, err)
+	}
+
+	return http.StatusOK, nil
+}
+
+// Delete handler implementation. Used as a rollback endpoint
+func (f *File) Delete(_ http.ResponseWriter, r *http.Request) (int, error) {
+	var (
+		objectID = chi.URLParam(r, "ID")
+		err      error
+	)
+
+	filePath := utils.BuildFilePath(f.cfg.StorageDir, objectID)
+
+	if err = os.Remove(filePath); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("error removing file '%s' - %s", filePath, err)
+	}
+
+	return http.StatusOK, nil
 }

@@ -12,9 +12,17 @@ import (
 	"github.com/3d0c/storage/pkg/utils"
 )
 
+const (
+	dbFileName = "/tmp/models_test.db"
+)
+
 var (
 	expectedNodes    []int
 	expectedObjectID string
+	testCfg          = config.Database{
+		DSN:     dbFileName,
+		Dialect: "sqlite3",
+	}
 )
 
 func TestFindBy(t *testing.T) {
@@ -24,7 +32,7 @@ func TestFindBy(t *testing.T) {
 		err   error
 	)
 
-	pm, err = NewPartsModel()
+	pm, err = NewPartsModel(testCfg)
 	assert.Nil(t, err)
 
 	nodes, err = pm.FindNodes(expectedObjectID)
@@ -32,7 +40,7 @@ func TestFindBy(t *testing.T) {
 	assert.Equal(t, expectedNodes, nodes)
 }
 
-func prepareDatabase() error {
+func prepareDatabase(cfg config.Database) error {
 	var (
 		rndSample = utils.RandomSeed(0, 10)
 		nodeIDs   []int
@@ -41,7 +49,7 @@ func prepareDatabase() error {
 		err       error
 	)
 
-	if pm, err = NewPartsModel(); err != nil {
+	if pm, err = NewPartsModel(cfg); err != nil {
 		return fmt.Errorf("error initializing Parts model - %s", err)
 	}
 
@@ -69,9 +77,6 @@ func prepareDatabase() error {
 }
 
 func TestMain(m *testing.M) {
-	const (
-		dbFileName = "/tmp/models_test.db"
-	)
 	var (
 		err error
 	)
@@ -81,10 +86,7 @@ func TestMain(m *testing.M) {
 		AddCaller: true,
 	})
 
-	config.Proxy().Database.DSN = dbFileName
-	config.Proxy().Database.Dialect = "sqlite3"
-
-	if err = prepareDatabase(); err != nil {
+	if err = prepareDatabase(testCfg); err != nil {
 		fmt.Printf("Error preparing testing environment - %s\n", err)
 		os.Exit(-1)
 	}

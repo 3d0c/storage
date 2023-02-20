@@ -1,28 +1,28 @@
 package saver
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"net/http"
-	"time"
 
 	"github.com/3d0c/storage/pkg/config"
 	"github.com/3d0c/storage/pkg/database/models"
+	"github.com/3d0c/storage/pkg/utils"
 )
 
 // HTTPSaver struct
 type HTTPSaver struct {
 	objectID string
-	nodes    config.Nodes
+	cfg      config.ProxyConfig
+	saved    []string
 	chunk    Chunk
 }
 
 // NewHTTPSaver constructor
-func NewHTTPSaver(objectID string, size int, nodes config.Nodes) (*HTTPSaver, error) {
+func NewHTTPSaver(objectID string, size int, c config.ProxyConfig) (*HTTPSaver, error) {
 	httpSaver := &HTTPSaver{
 		objectID: objectID,
-		nodes:    nodes,
+		cfg:      c,
+		saved:    make([]string, 0),
 		chunk:    NewChunk(size),
 	}
 
@@ -36,7 +36,7 @@ func (s *HTTPSaver) Save(r io.Reader) error {
 		err error
 	)
 
-	if pm, err = models.NewPartsModel(); err != nil {
+	if pm, err = models.NewPartsModel(s.cfg.Database); err != nil {
 		return fmt.Errorf("error initializing Parts model - %s", err)
 	}
 
@@ -52,7 +52,7 @@ func (s *HTTPSaver) Save(r io.Reader) error {
 
 		// TODO Circular buffer might be an option for better distribution
 
-		node, nodeID := s.nodes.Pick()
+		node, nodeID := s.cfg.Nodes.Pick()
 		node = fmt.Sprintf("%s/%s", node, s.objectID)
 
 		// DEBUG
@@ -68,41 +68,41 @@ func (s *HTTPSaver) Save(r io.Reader) error {
 			}
 		}()
 
-		if err = s.save(node, pr); err != nil {
+		if err = utils.Request("PUT", node, pr); err != nil {
+			if err = s.rollback(); err != nil {
+				return fmt.Errorf("error rollbacking transaction - %s", err)
+			}
 			return fmt.Errorf("error saving part #%d - %s", i, err)
 		}
 		pr.Close()
 
-		// TODO ROLLBACK to be implemented
 		if err = pm.Add(s.objectID, nodeID, i); err != nil {
+			// Remove all saved chunks from nodes
+			if err = s.rollback(); err != nil {
+				return fmt.Errorf("error removing chunks - %s", err)
+			}
+			// Database TX rollback
+			if err = pm.Rollback(); err != nil {
+				return fmt.Errorf("error rollbacking transaction - %s", err)
+			}
 			return fmt.Errorf("error adding part - %s", err)
 		}
+
+		s.saved = append(s.saved, node)
+	}
+
+	if err = pm.Commit(); err != nil {
+		return fmt.Errorf("error commiting transaction - %s", err)
 	}
 
 	return nil
 }
 
-// TODO add read/write timeouts
-func (s *HTTPSaver) save(url string, payload io.Reader) error {
-	var (
-		client      = new(http.Client)
-		req         *http.Request
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
-		resp        *http.Response
-		err         error
-	)
-	defer cancel()
-
-	if req, err = http.NewRequestWithContext(ctx, "PUT", url, payload); err != nil {
-		return fmt.Errorf("error creating http request - %s", err)
-	}
-
-	if resp, err = client.Do(req); err != nil {
-		return fmt.Errorf("error doing request %v - %s", req, err)
-	}
-
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
-		return fmt.Errorf("non 2xx response status code")
+func (s *HTTPSaver) rollback() error {
+	for _, url := range s.saved {
+		if err := utils.Request("DELETE", url, nil); err != nil {
+			return fmt.Errorf("error deleting chunk from '%s' - %s", url, err)
+		}
 	}
 
 	return nil

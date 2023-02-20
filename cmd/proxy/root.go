@@ -25,7 +25,11 @@ func Execute() {
 }
 
 // initConfig reads in config file
-func initConfig() {
+func initConfig() config.ProxyConfig {
+	var (
+		cfg = config.ProxyConfig{}
+	)
+
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -41,7 +45,9 @@ func initConfig() {
 		panic(fmt.Sprintf("Error reading config file from '%s' - %s", cfgFile, err))
 	}
 
-	if err := viper.Unmarshal(config.Proxy()); err != nil {
+	if err := viper.Unmarshal(&cfg); err != nil {
 		panic(fmt.Sprintf("Failed to init config: %s", err))
 	}
+
+	return cfg
 }

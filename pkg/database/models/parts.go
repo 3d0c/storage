@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/3d0c/storage/pkg/config"
 	"github.com/3d0c/storage/pkg/database"
 )
 
@@ -12,15 +13,29 @@ import (
 var ErrNotFound = errors.New("nothing found")
 
 // Parts Model
-type Parts struct{}
+type Parts struct {
+	cfg config.Database
+	tx  *sql.Tx
+}
 
 // NewPartsModel Parts constructor
-func NewPartsModel() (*Parts, error) {
-	return &Parts{}, nil
+func NewPartsModel(cfg config.Database) (*Parts, error) {
+	var (
+		parts = &Parts{
+			cfg: cfg,
+		}
+		err error
+	)
+
+	if parts.tx, err = database.Instance(cfg).Begin(); err != nil {
+		return nil, fmt.Errorf("error starting transation - %s", err)
+	}
+
+	return parts, nil
 }
 
 // FindNodes for object
-func (*Parts) FindNodes(objectID string) ([]int, error) {
+func (p *Parts) FindNodes(objectID string) ([]int, error) {
 	var (
 		result = make([]int, 0)
 		nodeID int
@@ -28,8 +43,13 @@ func (*Parts) FindNodes(objectID string) ([]int, error) {
 		err    error
 		stmt   string = "SELECT node_id FROM parts WHERE object_id = ? ORDER BY part_id ASC"
 	)
+	defer func() {
+		if err := p.Commit(); err != nil {
+			fmt.Printf("error commiting transaction - %s", err)
+		}
+	}()
 
-	if rows, err = database.Instance().Query(stmt, objectID); err != nil {
+	if rows, err = database.Instance(p.cfg).Query(stmt, objectID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -49,15 +69,32 @@ func (*Parts) FindNodes(objectID string) ([]int, error) {
 }
 
 // Add part
-func (*Parts) Add(objectID string, nodeID int, partID int) error {
+// No default TX action. TX should be closed on requesting side
+func (p *Parts) Add(objectID string, nodeID int, partID int) error {
 	var (
 		err  error
 		stmt string = "INSERT INTO parts VALUES (?,?,?)"
 	)
 
-	if _, err = database.Instance().Exec(stmt, objectID, nodeID, partID); err != nil {
+	if _, err = database.Instance(p.cfg).Exec(stmt, objectID, nodeID, partID); err != nil {
 		return fmt.Errorf("error inserting part - %s", err)
 	}
 
+	return nil
+}
+
+// Commit wrapper
+func (p *Parts) Commit() error {
+	if err := p.tx.Commit(); err != nil {
+		return fmt.Errorf("error commiting transaction - %s", err)
+	}
+	return nil
+}
+
+// Rollback wrapper
+func (p *Parts) Rollback() error {
+	if err := p.tx.Rollback(); err != nil {
+		return fmt.Errorf("error rollbacking transaction - %s", err)
+	}
 	return nil
 }

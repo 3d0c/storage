@@ -26,7 +26,11 @@ func Execute() {
 }
 
 // initConfig reads in config file
-func initConfig() {
+func initConfig() config.NodeConfig {
+	var (
+		cfg = config.NodeConfig{}
+	)
+
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -42,17 +46,19 @@ func initConfig() {
 		panic(fmt.Sprintf("Error reading config file from '%s' - %s", cfgFile, err))
 	}
 
-	if err := viper.Unmarshal(config.Node()); err != nil {
+	if err := viper.Unmarshal(&cfg); err != nil {
 		panic(fmt.Sprintf("Failed to init config: %s", err))
 	}
 
 	// Override address if it's provided by ENV
 	if address := os.Getenv("NODE_LISTEN"); address != "" {
-		config.Node().Server.Address = address
+		cfg.Server.Address = address
 	}
 
 	// Override storage dir if it's provided by ENV
 	if dir := os.Getenv("NODE_STORAGE"); dir != "" {
-		config.Node().Saver.StorageDir = dir
+		cfg.Saver.StorageDir = dir
 	}
+
+	return cfg
 }

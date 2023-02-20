@@ -19,6 +19,7 @@ import (
 var (
 	globalCtx context.Context
 	globalWG  *sync.WaitGroup
+	globalCfg config.ProxyConfig
 )
 
 var runCmd = &cobra.Command{
@@ -26,11 +27,11 @@ var runCmd = &cobra.Command{
 	Short: "Storage Proxy API Server",
 	Long:  `runs Storage Proxy API Server`,
 	Run: func(cmd *cobra.Command, args []string) {
-		initConfig()
+		globalCfg = initConfig()
 
-		log.InitLogger(config.Proxy().Logger)
+		log.InitLogger(globalCfg.Logger)
 		log.TheLogger().Debug("proxy component",
-			zap.String("config", fmt.Sprintf("%#v", config.Proxy())))
+			zap.String("config", fmt.Sprintf("%#v", globalCfg)))
 
 		runProcesses()
 		globalWG.Wait()
@@ -73,7 +74,7 @@ func runProcesses() {
 	globalWG.Add(1)
 	defer globalWG.Done()
 
-	if apiSrv, err = apiserver.NewAPIHTTPServer(); err != nil {
+	if apiSrv, err = apiserver.NewAPIHTTPServer(globalCfg); err != nil {
 		log.TheLogger().Fatal("error initializing API server", zap.Error(err))
 	}
 

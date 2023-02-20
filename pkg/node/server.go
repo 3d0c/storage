@@ -13,24 +13,25 @@ import (
 
 // APIHTTPServer structure
 type APIHTTPServer struct {
+	cfg    config.NodeConfig
 	srv    *http.Server
 	logger *zap.Logger
 }
 
 // NewAPIHTTPServer API server constructor
-func NewAPIHTTPServer() (*APIHTTPServer, error) {
+func NewAPIHTTPServer(cfg config.NodeConfig) (*APIHTTPServer, error) {
 	var (
-		cfg = config.Node().Server
-		s   = &APIHTTPServer{
+		s = &APIHTTPServer{
+			cfg:    cfg,
 			logger: log.TheLogger().With(zap.String("component", "APIHTTPServer")),
 		}
 	)
 
 	s.srv = &http.Server{
-		Addr:         cfg.Address,
-		Handler:      SetupRouter(),
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTemout,
+		Addr:         s.cfg.Server.Address,
+		Handler:      SetupRouter(s.cfg),
+		ReadTimeout:  s.cfg.Server.ReadTimeout,
+		WriteTimeout: s.cfg.Server.WriteTemout,
 	}
 
 	return s, nil

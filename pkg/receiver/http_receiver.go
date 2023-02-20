@@ -17,7 +17,7 @@ type HTTPReceiver struct {
 }
 
 // NewHTTPReceiver constructor
-func NewHTTPReceiver(objectID string, nodes []int) (*HTTPReceiver, error) {
+func NewHTTPReceiver(objectID string, nodes []int, cfg config.ProxyConfig) (*HTTPReceiver, error) {
 	var (
 		result = &HTTPReceiver{
 			objectID: objectID,
@@ -26,7 +26,7 @@ func NewHTTPReceiver(objectID string, nodes []int) (*HTTPReceiver, error) {
 	)
 
 	for _, v := range nodes {
-		result.nodes = append(result.nodes, config.Proxy().Nodes.Get(v))
+		result.nodes = append(result.nodes, cfg.Nodes.Get(v))
 	}
 
 	return result, nil
