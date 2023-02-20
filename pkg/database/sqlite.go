@@ -19,11 +19,11 @@ var (
 )
 
 // Instance is a DB connection singleton
-func Instance() *sql.DB {
+func Instance(cfg config.Database) *sql.DB {
 	once.Do(func() {
 		var err error
 
-		if instance, err = connectDatabase(); err != nil {
+		if instance, err = connectDatabase(cfg); err != nil {
 			panic(err)
 		}
 	})
@@ -31,10 +31,10 @@ func Instance() *sql.DB {
 	return instance
 }
 
-func connectDatabase() (*sql.DB, error) {
+func connectDatabase(cfg config.Database) (*sql.DB, error) {
 	var (
 		conn *sql.DB
-		dsn  = config.Proxy().Database.DSN
+		dsn  = cfg.DSN
 		err  error
 	)
 
@@ -46,11 +46,11 @@ func connectDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
-	if conn, err = sql.Open(config.Proxy().Database.Dialect, dsn); err != nil {
+	if conn, err = sql.Open(cfg.Dialect, dsn); err != nil {
 		return nil, err
 	}
 
-	if err = migrate(conn); err != nil {
+	if err = migrate(conn, cfg); err != nil {
 		return nil, fmt.Errorf("error migrating database - %s", err)
 	}
 

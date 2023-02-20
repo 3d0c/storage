@@ -8,24 +8,25 @@ import (
 
 	"github.com/3d0c/storage/pkg/apiserver/handlers"
 	"github.com/3d0c/storage/pkg/apiserver/middlewares"
+	"github.com/3d0c/storage/pkg/config"
 	"github.com/3d0c/storage/pkg/log"
 )
 
 // SetupRouter sets up endpoints
-func SetupRouter() *chi.Mux {
+func SetupRouter(c config.ProxyConfig) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Put(
 		"/file/{ID}",
 		middlewares.Chain(
-			handlers.FileHandler().Put,
+			handlers.FileHandler(c).Put,
 		),
 	)
 
 	r.Get(
 		"/file/{ID}",
 		middlewares.Chain(
-			handlers.FileHandler().Get,
+			handlers.FileHandler(c).Get,
 		),
 	)
 

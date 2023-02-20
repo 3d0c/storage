@@ -13,14 +13,14 @@ import (
 var migrations embed.FS
 
 // Migrate migrates database scheme
-func migrate(conn *sql.DB) error {
+func migrate(conn *sql.DB, cfg config.Database) error {
 	var (
 		err error
 	)
 
 	goose.SetBaseFS(migrations)
 
-	if err = goose.SetDialect(config.Proxy().Database.Dialect); err != nil {
+	if err = goose.SetDialect(cfg.Dialect); err != nil {
 		return err
 	}
 
